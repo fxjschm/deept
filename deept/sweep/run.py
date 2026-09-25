@@ -1,9 +1,5 @@
 from enum import Enum
 
-from deept.utils.log import (
-    value_to_str
-)
-
 
 class SweepRun:
 
@@ -20,12 +16,9 @@ class SweepRun:
         self.resume_output_folder = None
     
     def config_as_string(self):
-        as_string = ''
-        for k, v in sorted(self.config.items(), key=lambda item: item[0]):
-            v = value_to_str(v, no_precise=False)
-            as_string = f'{as_string}__{k}_{v}'
-        as_string = as_string[2:]
-        return as_string
+        # Imported here since deept.sweep's __init__ (indirectly) imports this module.
+        from deept.sweep import config_to_ident
+        return config_to_ident(self.config)
 
     def has_result(self):
         return self.__has_result

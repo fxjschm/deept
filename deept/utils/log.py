@@ -10,6 +10,8 @@ DEV_PREFIX = 'dev'
 TEST_PREFIX = 'test'
 LOG_SPLIT_STD = '_'
 LOG_SPLIT_FILE = '.'
+LIST_SEPARATOR = '_'
+EMPTY_LIST_STR = 'empty'
 
 def int_to_str(value):
     return f'{value:0>4}'
@@ -40,6 +42,10 @@ def value_to_str(v, no_precise=False):
                 v = float_to_str(v)
             else:
                 v = float_to_str_precise(v)
+    elif isinstance(v, list):
+        # [80, 160] -> '80_160'. Brackets, commas and spaces would end up in
+        # folder names, and '[...]' is a glob character class.
+        v = LIST_SEPARATOR.join(str(e) for e in v) if len(v) > 0 else EMPTY_LIST_STR
     return v
 
 def round_if_float(v):

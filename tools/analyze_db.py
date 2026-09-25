@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 
 from deept.utils.config import Config
 from deept.utils.debug import my_print
+from deept.sweep import ident_to_config
 
 
 def has_results(cur):
@@ -28,14 +29,7 @@ def get_result_for_run(run_id, results, result_run_id_index):
 
 def parse_run_ident(run_ident):
     """Takes the run_ident and returns a dict[param_name] = value"""
-    ret = {}
-    run_ident = run_ident.split('__')
-    for part in run_ident:
-        name = part.split('_')[:-1]
-        name = '_'.join(name)
-        value = float(part.split('_')[-1])
-        ret[name] = value
-    return ret
+    return {name: float(value) for name, value in ident_to_config(run_ident).items()}
 
 def parse_run_and_results(runs, run_names, results, result_names):
     """Since runs and results are in different tables, this function

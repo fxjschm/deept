@@ -1,9 +1,67 @@
+import re
+
 from cool_config import CoolConfig
 
+from deept.utils.log import value_to_str
 from deept.sweep.sweeper import SearchSweeper, ComparativeSweeper
 from deept.sweep.strategies import create_sweep_strategy_from_config
 from deept.sweep.parsing import parse_repeat_for_value, parse_sweep_parameters
 
+
+IDENT_KEY_VALUE_SEPARATOR = '__'
+IDENT_PARAM_SEPARATOR = '___'
+_IDENT_UNSAFE_CHARS = re.compile(r'[\s/*?\[\]]')
+_LEGACY_IDENT_PART = re.compile(r'[A-Za-z]\w*_[^_]+')
+
+
+def config_to_ident(config):
+    """{'seed': 0, 'lambda_clustering': 0.1, 'extraordinary_dwn': [80, 160]} ->
+    'extraordinary_dwn__80_160___lambda_clustering__0.10___seed__0000'."""
+    str_config = {
+        name: str(value_to_str(value, no_precise=False))
+        for name, value in sorted(config.items(), key=lambda item: item[0])
+    }
+    ident = IDENT_PARAM_SEPARATOR.join(
+        f'{name}{IDENT_KEY_VALUE_SEPARATOR}{value}' for name, value in str_config.items()
+    )
+
+    try:
+        round_trips = ident_to_config(ident) == str_config
+    except ValueError:
+        round_trips = False
+
+    if not round_trips or _IDENT_UNSAFE_CHARS.search(ident):
+        raise ValueError(
+            f'Cannot encode sweep config {str_config} as run_ident (got "{ident}")! '
+            f'It must parse back unchanged (no "{IDENT_KEY_VALUE_SEPARATOR}" in names, no '
+            f'"{IDENT_PARAM_SEPARATOR}" anywhere, no leading or trailing "_") and must not '
+            f'contain whitespace, "/" or any of "*?[]".'
+        )
+
+    return ident
+
+def ident_to_config(ident):
+    """Inverse of config_to_ident: 'lambda_clustering__0.10___seed__0000' ->
+    {'lambda_clustering': '0.10', 'seed': '0000'}."""
+    if not ident:
+        return {}
+
+    config = {}
+
+    legacy_parts = ident.split('__')
+    if all(_LEGACY_IDENT_PART.fullmatch(part) for part in legacy_parts):
+        for part in legacy_parts:
+            name, _, value = part.rpartition('_')
+            config[name] = value
+        return config
+
+    for pair in ident.split(IDENT_PARAM_SEPARATOR):
+        name, separator, value = pair.partition(IDENT_KEY_VALUE_SEPARATOR)
+        if not separator or not name:
+            raise ValueError(f'Malformed run_ident "{ident}": cannot split "{pair}" into name and value!')
+        config[name] = value
+
+    return config
 
 def create_sweeper_from_config(config, sweep_fn, sweep_fn_args):
     shared_kwargs = build_shared_sweeper_kwargs(config, sweep_fn, sweep_fn_args)
